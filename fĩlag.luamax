@@ -1,0 +1,286 @@
+-- zhnghub FixLag Launcher
+-- Tác dụng: tải script fixlag từ repo bạn cho rồi tạo menu "zhnghub" để bật/tắt tối ưu
+-- Lưu ý: dùng cho mục đích học/own game/testing. Không khuyến khích dùng để hack game người khác.
+
+local remoteURL = "https://raw.githubusercontent.com/buigiahungct25/Fixlag/refs/heads/main/f%C4%A9lag.lua8"
+
+-- TỐI ƯU: đặt biến toàn cục để menu có thể truy cập
+local getrs, RunService, Players, Lighting, StarterGui = game:GetService, game:GetService("RunService"), game:GetService("Players"), game:GetService("Lighting"), game:GetService("StarterGui")
+local player = Players.LocalPlayer
+
+-- Trạng thái các chế độ
+local state = {
+    removedTextures = false,
+    removedDecals = false,
+    removedMeshes = false,
+    lowGraphics = false,
+    showFPS = false,
+    originalLighting = {},
+}
+
+-- Hàm an toàn để pcall hành động
+local function safe(fn)
+    local ok, err = pcall(fn)
+    if not ok then
+        warn("[zhnghub] Lỗi:", err)
+    end
+end
+
+-- Hàm xóa textures/decal/mesh (các phần tử nặng)
+local function removeHeavyAssets()
+    safe(function()
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("Decal") then
+                v:Destroy()
+            elseif v:IsA("Texture") then
+                v:Destroy()
+            elseif v:IsA("MeshPart") or v:IsA("SpecialMesh") or v:IsA("UnionOperation") or v:IsA("FileMesh") then
+                -- đối với MeshPart chúng ta thay bằng Part rỗng để tránh break scripts nhiều
+                if v:IsA("MeshPart") and v.Parent then
+                    local p = Instance.new("Part")
+                    p.Size = v.Size or Vector3.new(1,1,1)
+                    p.CFrame = v.CFrame or CFrame.new()
+                    p.Anchored = v.Anchored
+                    p.CanCollide = v.CanCollide
+                    p.Material = Enum.Material.SmoothPlastic
+                    p.Name = v.Name .. "_mesh_replaced"
+                    p.Parent = v.Parent
+                    v:Destroy()
+                else
+                    v:Destroy()
+                end
+            end
+        end
+    end)
+end
+
+local function restoreMeshes() -- KHÔNG đảm bảo hoàn toàn (sau destroy không thể khôi phục)
+    warn("[zhnghub] Không thể hoàn nguyên hoàn toàn các object đã bị destroy. Hãy reload map nếu muốn khôi phục.")
+end
+
+-- Thay đổi chất lượng đồ họa để giảm lag
+local function setLowGraphics(enable)
+    safe(function()
+        if enable then
+            -- lưu trữ giá trị ban đầu nếu chưa lưu
+            if not state.originalLighting.Brightness then
+                state.originalLighting.Brightness = Lighting.Brightness
+                state.originalLighting.GlobalShadows = Lighting.GlobalShadows
+                state.originalLighting.OutdoorAmbient = Lighting.OutdoorAmbient
+                state.originalLighting.FogEnd = Lighting.FogEnd
+                state.originalLighting.ClockTime = Lighting.ClockTime
+            end
+            Lighting.Brightness = 0
+            Lighting.GlobalShadows = false
+            Lighting.OutdoorAmbient = Color3.fromRGB(100,100,100)
+            Lighting.FogEnd = 1000
+            Lighting.ClockTime = 12
+            -- giảm chất lượng các game settings nếu có
+            pcall(function()
+                settings().Rendering.QualityLevel = 1
+            end)
+        else
+            -- phục hồi
+            if state.originalLighting.Brightness then
+                Lighting.Brightness = state.originalLighting.Brightness
+                Lighting.GlobalShadows = state.originalLighting.GlobalShadows
+                Lighting.OutdoorAmbient = state.originalLighting.OutdoorAmbient
+                Lighting.FogEnd = state.originalLighting.FogEnd
+                Lighting.ClockTime = state.originalLighting.ClockTime
+            end
+            pcall(function()
+                settings().Rendering.QualityLevel = 14
+            end)
+        end
+    end)
+end
+
+-- Hiển thị FPS
+local fpsLabel = nil
+local lastFrame = tick()
+local fpsConn = nil
+local function toggleFPS(enable)
+    if enable then
+        if fpsLabel then return end
+        local screenGui = player:WaitForChild("PlayerGui")
+        fpsLabel = Instance.new("TextLabel")
+        fpsLabel.Size = UDim2.new(0,100,0,30)
+        fpsLabel.Position = UDim2.new(1,-110,0,10)
+        fpsLabel.AnchorPoint = Vector2.new(0,0)
+        fpsLabel.BackgroundTransparency = 0.5
+        fpsLabel.BackgroundColor3 = Color3.fromRGB(0,0,0)
+        fpsLabel.TextColor3 = Color3.fromRGB(255,255,255)
+        fpsLabel.TextScaled = true
+        fpsLabel.Name = "zhnghub_fps"
+        fpsLabel.Parent = screenGui
+
+        fpsConn = RunService.RenderStepped:Connect(function()
+            local now = tick()
+            local dt = now - lastFrame
+            lastFrame = now
+            local fps = 0
+            if dt > 0 then fps = math.floor(1/dt + 0.5) end
+            fpsLabel.Text = "FPS: "..tostring(fps)
+        end)
+    else
+        if fpsConn then fpsConn:Disconnect() fpsConn = nil end
+        if fpsLabel then fpsLabel:Destroy() fpsLabel = nil end
+    end
+end
+
+-- Menu GUI đơn giản tên "zhnghub"
+local function createMenu()
+    safe(function()
+        local screenGui = Instance.new("ScreenGui")
+        screenGui.Name = "zhnghub"
+        screenGui.ResetOnSpawn = false
+
+        local frame = Instance.new("Frame")
+        frame.Parent = screenGui
+        frame.Size = UDim2.new(0,220,0,260)
+        frame.Position = UDim2.new(0,10,0,80)
+        frame.BackgroundTransparency = 0.25
+        frame.BackgroundColor3 = Color3.fromRGB(20,20,20)
+        frame.BorderSizePixel = 0
+        frame.AnchorPoint = Vector2.new(0,0)
+
+        local title = Instance.new("TextLabel")
+        title.Parent = frame
+        title.Size = UDim2.new(1,0,0,30)
+        title.Position = UDim2.new(0,0,0,0)
+        title.BackgroundTransparency = 1
+        title.Text = "zhnghub — FixLag"
+        title.TextColor3 = Color3.fromRGB(255,255,255)
+        title.TextScaled = true
+        title.Font = Enum.Font.SourceSansBold
+
+        local function makeButton(y, text, callback)
+            local btn = Instance.new("TextButton")
+            btn.Parent = frame
+            btn.Size = UDim2.new(0,200,0,30)
+            btn.Position = UDim2.new(0,10,0,y)
+            btn.Text = text
+            btn.TextScaled = true
+            btn.BackgroundColor3 = Color3.fromRGB(40,40,40)
+            btn.TextColor3 = Color3.fromRGB(255,255,255)
+            btn.BorderSizePixel = 0
+            btn.MouseButton1Click:Connect(function()
+                callback(btn)
+            end)
+            return btn
+        end
+
+        local y = 40
+        -- Remove textures
+        makeButton(y, "Toggle Remove Textures", function(btn)
+            state.removedTextures = not state.removedTextures
+            if state.removedTextures then
+                -- Xóa Texture objects
+                for _, v in pairs(workspace:GetDescendants()) do
+                    if v:IsA("Texture") then
+                        v:Destroy()
+                    end
+                end
+                btn.Text = "Remove Textures ✅"
+            else
+                -- không thể khôi phục
+                btn.Text = "Remove Textures ❌ (đã xóa)"
+            end
+        end)
+        y = y + 35
+
+        -- Remove decals
+        makeButton(y, "Toggle Remove Decals", function(btn)
+            state.removedDecals = not state.removedDecals
+            if state.removedDecals then
+                for _, v in pairs(workspace:GetDescendants()) do
+                    if v:IsA("Decal") then
+                        v:Destroy()
+                    end
+                end
+                btn.Text = "Remove Decals ✅"
+            else
+                btn.Text = "Remove Decals ❌ (đã xóa)"
+            end
+        end)
+        y = y + 35
+
+        -- Replace/destroy meshes
+        makeButton(y, "Remove/Replace Meshes", function(btn)
+            removeHeavyAssets()
+            btn.Text = "Meshes Removed"
+        end)
+        y = y + 35
+
+        -- Low Graphics
+        makeButton(y, "Toggle Low Graphics", function(btn)
+            state.lowGraphics = not state.lowGraphics
+            setLowGraphics(state.lowGraphics)
+            btn.Text = state.lowGraphics and "Low Graphics ✅" or "Low Graphics ❌"
+        end)
+        y = y + 35
+
+        -- FPS
+        makeButton(y, "Toggle FPS", function(btn)
+            state.showFPS = not state.showFPS
+            toggleFPS(state.showFPS)
+            btn.Text = state.showFPS and "FPS On ✅" or "FPS Off ❌"
+        end)
+        y = y + 35
+
+        -- Restore warning
+        makeButton(y, "Restore Lighting (if saved)", function(btn)
+            setLowGraphics(false)
+            btn.Text = "Lighting Restored"
+        end)
+        y = y + 35
+
+        -- Execute remote fixlag if available
+        makeButton(y, "Run remote fixlag script", function(btn)
+            -- Tải và chạy
+            local ok, res = pcall(function()
+                local s = game:HttpGet(remoteURL)
+                if s and #s > 10 then
+                    -- chạy trong pcall an toàn
+                    local fn, err = loadstring(s)
+                    if fn then
+                        fn()
+                        return true
+                    else
+                        error("loadstring error: "..tostring(err))
+                    end
+                else
+                    error("Không lấy được nội dung từ remote.")
+                end
+            end)
+            if ok then
+                btn.Text = "Remote script run ✅"
+            else
+                btn.Text = "Remote script lỗi ❌"
+                warn("[zhnghub] Lỗi khi chạy remote:", res)
+            end
+        end)
+        y = y + 40
+
+        -- Footer label
+        local footer = Instance.new("TextLabel")
+        footer.Parent = frame
+        footer.Size = UDim2.new(1,0,0,20)
+        footer.Position = UDim2.new(0,0,1,-22)
+        footer.BackgroundTransparency = 1
+        footer.Text = "By zhnghub"
+        footer.TextScaled = true
+        footer.TextColor3 = Color3.fromRGB(200,200,200)
+
+        -- gắn GUI vào PlayerGui
+        screenGui.Parent = player:WaitForChild("PlayerGui")
+    end)
+end
+
+-- Tự động tạo menu ngay
+createMenu()
+
+-- Optionally, auto-run remote script once at start (bạn có thể comment dòng dưới nếu không muốn)
+-- pcall(function() loadstring(game:HttpGet(remoteURL))() end)
+
+print("[zhnghub] Menu created. Sử dụng để tối ưu performance.")
