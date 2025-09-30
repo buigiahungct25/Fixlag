@@ -1,0 +1,168 @@
+-- GiHung Hub - Manual Full GUI Optimized
+-- Tạo bởi ChatGPT
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UIS = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+local Workspace = game:GetService("Workspace")
+local Lighting = game:GetService("Lighting")
+
+-- ====== GUI ======
+local guiFrame = Instance.new("Frame")
+guiFrame.Size = UDim2.new(0, 260, 0, 420)
+guiFrame.Position = UDim2.new(0.5, -130, 0.5, -210)
+guiFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+guiFrame.Active = true
+guiFrame.Draggable = true
+guiFrame.Parent = PlayerGui
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.Position = UDim2.new(0, 0, 0, 0)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Text = "GiHung Hub"
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+title.Parent = guiFrame
+
+-- FPS Label
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.new(1, 0, 0, 20)
+fpsLabel.Position = UDim2.new(0, 0, 0, 35)
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+fpsLabel.Text = "FPS: 0"
+fpsLabel.Parent = guiFrame
+
+-- ====== Toggle Menu ======
+local menuEnabled = true
+UIS.InputBegan:Connect(function(input, gameProcessed)
+    if input.KeyCode == Enum.KeyCode.M then
+        menuEnabled = not menuEnabled
+        guiFrame.Visible = menuEnabled
+    end
+end)
+
+-- ====== FPS Update ======
+local lastTime = tick()
+RunService.RenderStepped:Connect(function()
+    local now = tick()
+    local dt = now - lastTime
+    local fps = math.floor(1/dt)
+    fpsLabel.Text = "FPS: "..fps
+    lastTime = now
+end)
+
+-- ====== Variables ======
+local graphicsLevels = {0.2, 0.4, 0.6, 0.8}
+local currentLevel = 0.6
+
+-- ====== Functions ======
+local function setGraphics(level)
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v:IsA("Part") or v:IsA("MeshPart") or v:IsA("UnionOperation") then
+            v.Material = Enum.Material.Plastic
+            v.Transparency = level
+        elseif v:IsA("Decal") or v:IsA("Texture") then
+            v:Destroy()
+        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or v:IsA("Sparkles") then
+            v.Enabled = false
+        end
+    end
+end
+
+local function fixLagManual()
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v:IsA("Decal") or v:IsA("Texture") or v:IsA("MeshPart") or v:IsA("UnionOperation") then
+            v:Destroy()
+        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or v:IsA("Sparkles") then
+            v.Enabled = false
+        elseif v:IsA("Part") then
+            v.Material = Enum.Material.Plastic
+            v.Reflectance = 0
+            v.Transparency = currentLevel
+        end
+    end
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 1000
+    Lighting.Brightness = 2
+end
+
+local function clearAdminEffects()
+    local character = LocalPlayer.Character
+    for _, v in pairs(Workspace:GetDescendants()) do
+        if v ~= character then
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or v:IsA("Sparkles") then
+                v.Enabled = false
+            elseif v:IsA("Decal") or v:IsA("Texture") then
+                v:Destroy()
+            end
+        end
+    end
+end
+
+local function resetMap()
+    local character = LocalPlayer.Character
+    local humanoidRoot = character and character:FindFirstChild("HumanoidRootPart")
+    local pos
+    if humanoidRoot then pos = humanoidRoot.Position end
+
+    for _, obj in pairs(Workspace:GetChildren()) do
+        if obj ~= character and not obj:IsA("Terrain") then
+            obj:Destroy()
+        end
+    end
+
+    if humanoidRoot and pos then
+        humanoidRoot.CFrame = CFrame.new(pos)
+    end
+end
+
+-- ====== GUI Buttons ======
+-- Group: Graphics
+for i, level in ipairs(graphicsLevels) do
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(0.48, 0, 0, 30)
+    btn.Position = UDim2.new((i-1)%2 * 0.5 + 0.01, 0, 0, 60 + math.floor((i-1)/2)*35)
+    btn.Text = "Giảm "..(level*100).."%"
+    btn.BackgroundColor3 = Color3.fromRGB(70,70,70)
+    btn.TextColor3 = Color3.fromRGB(255,255,255)
+    btn.Parent = guiFrame
+    btn.MouseButton1Click:Connect(function()
+        setGraphics(level)
+        currentLevel = level
+    end)
+end
+
+-- Group: Fix Lag
+local fixBtn = Instance.new("TextButton")
+fixBtn.Size = UDim2.new(1, -20, 0, 30)
+fixBtn.Position = UDim2.new(0, 10, 1, -160)
+fixBtn.Text = "Fix Lag"
+fixBtn.BackgroundColor3 = Color3.fromRGB(50,200,50)
+fixBtn.TextColor3 = Color3.fromRGB(255,255,255)
+fixBtn.Parent = guiFrame
+fixBtn.MouseButton1Click:Connect(fixLagManual)
+
+local clearEffectsBtn = Instance.new("TextButton")
+clearEffectsBtn.Size = UDim2.new(1, -20, 0, 30)
+clearEffectsBtn.Position = UDim2.new(0, 10, 1, -120)
+clearEffectsBtn.Text = "Xóa Hiệu Ứng Admin"
+clearEffectsBtn.BackgroundColor3 = Color3.fromRGB(255,150,0)
+clearEffectsBtn.TextColor3 = Color3.fromRGB(255,255,255)
+clearEffectsBtn.Parent = guiFrame
+clearEffectsBtn.MouseButton1Click:Connect(clearAdminEffects)
+
+-- Group: Map
+local resetBtn = Instance.new("TextButton")
+resetBtn.Size = UDim2.new(1, -20, 0, 30)
+resetBtn.Position = UDim2.new(0, 10, 1, -80)
+resetBtn.Text = "Reset Map"
+resetBtn.BackgroundColor3 = Color3.fromRGB(200,50,50)
+resetBtn.TextColor3 = Color3.fromRGB(255,255,255)
+resetBtn.Parent = guiFrame
+resetBtn.MouseButton1Click:Connect(resetMap)
