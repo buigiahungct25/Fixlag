@@ -1,0 +1,144 @@
+-- GiHung Hub Complete v2
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ===== Menu GUI =====
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "GiHungHub"
+screenGui.Parent = PlayerGui
+
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0, 300, 0, 400)
+mainFrame.Position = UDim2.new(0.5, -150, 0.5, -200)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = screenGui
+
+-- Title bar (draggable)
+local title = Instance.new("TextLabel")
+title.Text = "GiHung Hub"
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+title.TextColor3 = Color3.fromRGB(255, 255, 255)
+title.Parent = mainFrame
+
+-- FPS Display
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.new(1, 0, 0, 30)
+fpsLabel.Position = UDim2.new(0, 0, 0, 30)
+fpsLabel.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+fpsLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
+fpsLabel.Text = "FPS: 0"
+fpsLabel.Parent = mainFrame
+
+-- ===== Close/Open Button =====
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 80, 0, 25)
+toggleBtn.Position = UDim2.new(1, -85, 0, 2)
+toggleBtn.Text = "Close"
+toggleBtn.BackgroundColor3 = Color3.fromRGB(100, 50, 50)
+toggleBtn.TextColor3 = Color3.fromRGB(255,255,255)
+toggleBtn.Parent = mainFrame
+
+local menuVisible = true
+toggleBtn.MouseButton1Click:Connect(function()
+    menuVisible = not menuVisible
+    mainFrame.Visible = menuVisible
+    toggleBtn.Text = menuVisible and "Close" or "Open"
+end)
+
+-- ===== Draggable =====
+local dragging = false
+local dragInput, mousePos, framePos
+
+title.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        mousePos = input.Position
+        framePos = mainFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+title.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - mousePos
+        mainFrame.Position = framePos + UDim2.new(0, delta.X, 0, delta.Y)
+    end
+end)
+
+-- ===== Admin Abuse Fix =====
+local bannedEffects = {"Fire", "Smoke", "Explosion", "BodyVelocity", "BodyGyro", "BlurEffect", "ParticleEmitter"}
+
+RunService.Heartbeat:Connect(function()
+    -- FPS Update
+    local fps = math.floor(1/RunService.RenderStepped:Wait())
+    fpsLabel.Text = "FPS: "..fps
+
+    -- Remove admin abuse effects
+    for _, player in pairs(Players:GetPlayers()) do
+        if player.Character then
+            for _, obj in pairs(player.Character:GetDescendants()) do
+                if table.find(bannedEffects, obj.Name) then
+                    obj:Destroy()
+                end
+            end
+        end
+        if player:FindFirstChild("PlayerGui") then
+            for _, guiObj in pairs(player.PlayerGui:GetDescendants()) do
+                if table.find(bannedEffects, guiObj.Name) then
+                    guiObj:Destroy()
+                end
+            end
+        end
+    end
+end)
+
+-- ===== Buttons & Graphics Reduction =====
+local function createButton(name, yPos, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -10, 0, 30)
+    btn.Position = UDim2.new(0, 5, 0, yPos)
+    btn.BackgroundColor3 = Color3.fromRGB(70, 70, 70)
+    btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    btn.Text = name
+    btn.Parent = mainFrame
+    btn.MouseButton1Click:Connect(callback)
+end
+
+-- Reset Map Button
+createButton("Reset Map", 70, function()
+    for _, obj in pairs(workspace:GetChildren()) do
+        if obj:IsA("Model") and obj.Name ~= "Terrain" then
+            obj:Destroy()
+        end
+    end
+end)
+
+-- Graphics Reduction Buttons
+local reductions = {20, 40, 60, 80} -- %
+for i, perc in ipairs(reductions) do
+    createButton("Reduce Graphics "..perc.."%", 70 + i*40, function()
+        for _, part in pairs(workspace:GetDescendants()) do
+            if part:IsA("Part") or part:IsA("MeshPart") then
+                part.Material = Enum.Material.SmoothPlastic
+                part.Reflectance = 0
+                part.Transparency = perc/100
+            end
+        end
+    end)
+end
