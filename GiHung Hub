@@ -1,0 +1,292 @@
+--==================================================
+-- GiHung Hub v6 - Full Package + Graphic Levels
+--==================================================
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local UserInputService = game:GetService("UserInputService")
+local LocalPlayer = Players.LocalPlayer
+local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
+
+-- ScreenGui
+local screenGui = Instance.new("ScreenGui")
+screenGui.Name = "GiHungHub"
+screenGui.ResetOnSpawn = false
+screenGui.Parent = PlayerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 400)
+frame.Position = UDim2.new(0, 20, 0, 100)
+frame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+frame.BorderSizePixel = 0
+frame.Parent = screenGui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundTransparency = 1
+title.Text = "GiHung Hub - Fix Lag"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.Font = Enum.Font.GothamBold
+title.TextSize = 18
+title.Parent = frame
+
+-- Helper tạo nút
+local function makeButton(text, order)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -20, 0, 32)
+    btn.Position = UDim2.new(0, 10, 0, 30 + (order * 38))
+    btn.BackgroundColor3 = Color3.fromRGB(45,45,45)
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.Gotham
+    btn.TextSize = 16
+    btn.Text = text
+    btn.Parent = frame
+    return btn
+end
+
+-- Trạng thái
+local fixing, lightLow, hideParticles, hideMap, fpsOn = false, false, false, false, false
+local distance = 250
+
+-- Nút Fix Lag
+local lagBtn = makeButton("Xóa Texture/Mesh: OFF", 0)
+lagBtn.MouseButton1Click:Connect(function()
+    fixing = not fixing
+    if fixing then
+        lagBtn.Text = "Xóa Texture/Mesh: ON"
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("Decal") or v:IsA("Texture") or v:IsA("MeshPart") or v:IsA("UnionOperation") then
+                v:Destroy()
+            end
+        end
+    else
+        lagBtn.Text = "Xóa Texture/Mesh: OFF"
+    end
+end)
+
+-- Nút Lighting
+local lightBtn = makeButton("Giảm ánh sáng: OFF", 1)
+lightBtn.MouseButton1Click:Connect(function()
+    lightLow = not lightLow
+    if lightLow then
+        lightBtn.Text = "Giảm ánh sáng: ON"
+        Lighting.FogEnd = 100
+        Lighting.Brightness = 1
+        Lighting.GlobalShadows = false
+    else
+        lightBtn.Text = "Giảm ánh sáng: OFF"
+        Lighting.FogEnd = 100000
+        Lighting.Brightness = 2
+        Lighting.GlobalShadows = true
+    end
+end)
+
+-- Nút ẩn Particle
+local particleBtn = makeButton("Ẩn hiệu ứng: OFF", 2)
+particleBtn.MouseButton1Click:Connect(function()
+    hideParticles = not hideParticles
+    if hideParticles then
+        particleBtn.Text = "Ẩn hiệu ứng: ON"
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Enabled = false
+            end
+        end
+    else
+        particleBtn.Text = "Ẩn hiệu ứng: OFF"
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") then
+                v.Enabled = true
+            end
+        end
+    end
+end)
+
+-- Nút ẩn map xa
+local mapBtn = makeButton("Ẩn map xa: OFF", 3)
+RunService.RenderStepped:Connect(function()
+    if hideMap and LocalPlayer.Character and LocalPlayer.Character:FindFirstChild("HumanoidRootPart") then
+        local hrp = LocalPlayer.Character.HumanoidRootPart
+        for _, v in pairs(workspace:GetChildren()) do
+            if v:IsA("Model") or v:IsA("Part") then
+                local pos = v:IsA("Model") and v.PrimaryPart and v.PrimaryPart.Position or v.Position
+                if pos then
+                    local far = (pos - hrp.Position).Magnitude > distance
+                    if v:IsA("Model") and v.PrimaryPart then
+                        v.PrimaryPart.Transparency = far and 1 or 0
+                    elseif v:IsA("Part") then
+                        v.Transparency = far and 1 or 0
+                    end
+                end
+            end
+        end
+    end
+end)
+
+mapBtn.MouseButton1Click:Connect(function()
+    hideMap = not hideMap
+    mapBtn.Text = hideMap and "Ẩn map xa: ON" or "Ẩn map xa: OFF"
+    if not hideMap then
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("BasePart") then
+                v.Transparency = 0
+            end
+        end
+    end
+end)
+
+-- Nút FPS
+local fpsBtn = makeButton("Hiển thị FPS: OFF", 4)
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.new(0, 120, 0, 30)
+fpsLabel.Position = UDim2.new(1, -130, 0, 10)
+fpsLabel.BackgroundTransparency = 0.3
+fpsLabel.BackgroundColor3 = Color3.fromRGB(20,20,20)
+fpsLabel.TextColor3 = Color3.fromRGB(0,255,0)
+fpsLabel.Font = Enum.Font.Gotham
+fpsLabel.TextSize = 14
+fpsLabel.Text = "FPS: --"
+fpsLabel.Visible = false
+fpsLabel.Parent = screenGui
+
+local lastTime, count = tick(), 0
+RunService.RenderStepped:Connect(function()
+    if fpsOn then
+        count += 1
+        local now = tick()
+        if now - lastTime >= 1 then
+            fpsLabel.Text = "FPS: " .. tostring(count)
+            count = 0
+            lastTime = now
+        end
+    end
+end)
+
+fpsBtn.MouseButton1Click:Connect(function()
+    fpsOn = not fpsOn
+    fpsLabel.Visible = fpsOn
+    fpsBtn.Text = fpsOn and "Hiển thị FPS: ON" or "Hiển thị FPS: OFF"
+end)
+
+-- Nút Reset
+local resetBtn = makeButton("🔄 Reset Tất Cả", 5)
+resetBtn.BackgroundColor3 = Color3.fromRGB(100,40,40)
+resetBtn.MouseButton1Click:Connect(function()
+    fixing, lightLow, hideParticles, hideMap, fpsOn = false, false, false, false, false
+
+    lagBtn.Text = "Xóa Texture/Mesh: OFF"
+    lightBtn.Text = "Giảm ánh sáng: OFF"
+    particleBtn.Text = "Ẩn hiệu ứng: OFF"
+    mapBtn.Text = "Ẩn map xa: OFF"
+    fpsBtn.Text = "Hiển thị FPS: OFF"
+    fpsLabel.Visible = false
+
+    Lighting.FogEnd = 100000
+    Lighting.Brightness = 2
+    Lighting.GlobalShadows = true
+
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("ParticleEmitter") or v:IsA("Trail") then
+            v.Enabled = true
+        end
+        if v:IsA("BasePart") then
+            v.Transparency = 0
+        end
+    end
+end)
+
+-- Nút Thu gọn/Hiện menu
+local toggleBtn = Instance.new("TextButton")
+toggleBtn.Size = UDim2.new(0, 30, 0, 30)
+toggleBtn.Position = UDim2.new(1, -40, 0, 0)
+toggleBtn.BackgroundColor3 = Color3.fromRGB(50,50,50)
+toggleBtn.TextColor3 = Color3.new(1,1,1)
+toggleBtn.Font = Enum.Font.GothamBold
+toggleBtn.TextSize = 18
+toggleBtn.Text = "—"
+toggleBtn.Parent = frame
+
+local menuVisible = true
+toggleBtn.MouseButton1Click:Connect(function()
+    menuVisible = not menuVisible
+    for _, child in pairs(frame:GetChildren()) do
+        if child:IsA("TextButton") and child ~= toggleBtn then
+            child.Visible = menuVisible
+        elseif child:IsA("TextLabel") and child ~= title then
+            child.Visible = menuVisible
+        end
+    end
+    toggleBtn.Text = menuVisible and "—" or "▢"
+end)
+
+-- Kéo thả menu
+local dragging = false
+local dragInput, dragStart, startPos
+
+frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = frame.Position
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+RunService.RenderStepped:Connect(function()
+    if dragging and dragInput then
+        local delta = dragInput.Position - dragStart
+        frame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+--==================================================
+-- Nút giảm đồ họa 20%, 40%, 60%, 80%
+--==================================================
+local function createGraphicButton(text, percent, order)
+    local btn = makeButton(text, order)
+    btn.MouseButton1Click:Connect(function()
+        -- Lighting giảm
+        Lighting.Brightness = 2 * (1 - percent/100)
+        Lighting.FogEnd = 100000 * (1 - percent/100)
+        Lighting.GlobalShadows = percent >= 40 and false or true
+
+        -- Xóa / tắt vật thể tùy mức
+        for _, v in pairs(workspace:GetDescendants()) do
+            if percent >= 20 and (v:IsA("Decal") or v:IsA("Texture")) then
+                v:Destroy()
+            end
+            if percent >= 40 and v:IsA("MeshPart") then
+                v:Destroy()
+            end
+            if percent >= 60 and (v:IsA("ParticleEmitter") or v:IsA("Trail")) then
+                v.Enabled = false
+            end
+            if percent >= 80 and v:IsA("UnionOperation") then
+                v:Destroy()
+            end
+        end
+    end)
+    return btn
+end
+
+-- Tạo các nút giảm đồ họa
+createGraphicButton("Giảm 20% đồ họa", 20, 6)
+createGraphicButton("Giảm 40% đồ họa", 40, 7)
+createGraphicButton("Giảm 60% đồ họa", 60, 8)
+createGraphicButton("Giảm 80% đồ họa", 80, 9)
