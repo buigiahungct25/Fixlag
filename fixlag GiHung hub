@@ -1,0 +1,167 @@
+-- GiHung Hub - Full Script
+-- Tác giả: ChatGPT (2025)
+
+local player = game.Players.LocalPlayer
+local gui = Instance.new("ScreenGui", player:WaitForChild("PlayerGui"))
+gui.Name = "GiHungHub"
+
+-- Main frame
+local mainFrame = Instance.new("Frame")
+mainFrame.Size = UDim2.new(0,300,0,500)
+mainFrame.Position = UDim2.new(0.5,-150,0.5,-250)
+mainFrame.BackgroundColor3 = Color3.fromRGB(30,30,30)
+mainFrame.BorderSizePixel = 0
+mainFrame.Parent = gui
+
+local uiCorner = Instance.new("UICorner")
+uiCorner.CornerRadius = UDim.new(0,12)
+uiCorner.Parent = mainFrame
+
+-- Title
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1,0,0,50)
+title.Position = UDim2.new(0,0,0,0)
+title.BackgroundTransparency = 1
+title.Text = "GiHung Hub"
+title.TextColor3 = Color3.fromRGB(255,255,255)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 28
+title.Parent = mainFrame
+
+-- Tips
+local tips = Instance.new("TextLabel")
+tips.Size = UDim2.new(1,-20,0,80)
+tips.Position = UDim2.new(0,10,1,-90)
+tips.BackgroundTransparency = 1
+tips.TextColor3 = Color3.fromRGB(200,200,200)
+tips.Font = Enum.Font.SourceSans
+tips.TextSize = 16
+tips.TextWrapped = true
+tips.Text = "💡 Tips:\n- Máy yếu? Chọn giảm đồ họa 60%-80% và bật Fix Lag.\n- FPS cao? Bật Show FPS.\n- Dùng Toggle Menu để ẩn/hiện GUI.\n- Reset Graphics để trở về mặc định."
+tips.Parent = mainFrame
+
+-- FPS Counter
+local fpsCounter = Instance.new("TextLabel")
+fpsCounter.Size = UDim2.new(0,100,0,40)
+fpsCounter.Position = UDim2.new(1,-110,0,10)
+fpsCounter.BackgroundTransparency = 0.5
+fpsCounter.BackgroundColor3 = Color3.fromRGB(0,0,0)
+fpsCounter.TextColor3 = Color3.fromRGB(255,255,255)
+fpsCounter.Font = Enum.Font.SourceSansBold
+fpsCounter.TextSize = 20
+fpsCounter.Text = "FPS: 0"
+fpsCounter.Name = "FPSCounter"
+fpsCounter.Parent = gui
+
+local runService = game:GetService("RunService")
+local lastTime = tick()
+runService.RenderStepped:Connect(function()
+    local delta = tick() - lastTime
+    local fps = math.floor(1/delta)
+    fpsCounter.Text = "FPS: "..fps
+    lastTime = tick()
+end)
+
+-- Helper functions
+local lighting = game:GetService("Lighting")
+local defaultLighting = {GlobalShadows = lighting.GlobalShadows,Brightness = lighting.Brightness,ClockTime = lighting.ClockTime,FogEnd = lighting.FogEnd}
+
+local function fixLag()
+    for _,v in pairs(workspace:GetDescendants()) do
+        if v:IsA("Decal") or v:IsA("Texture") or v:IsA("MeshPart") or v:IsA("UnionOperation") then
+            v:Destroy()
+        elseif v:IsA("ParticleEmitter") or v:IsA("Trail") then
+            v.Enabled = false
+        end
+    end
+end
+
+local function setGraphics(level)
+    if level == 20 then
+        lighting.GlobalShadows = false
+    elseif level == 40 then
+        for _,v in pairs(workspace:GetDescendants()) do
+            if v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Enabled=false end
+        end
+    elseif level == 60 then
+        for _,v in pairs(workspace:GetDescendants()) do
+            if v:IsA("BasePart") and (v.Position-player.Character.HumanoidRootPart.Position).Magnitude>100 then
+                v.Transparency=1
+            end
+        end
+    elseif level == 80 then
+        fixLag()
+        for _,v in pairs(workspace:GetDescendants()) do
+            if v:IsA("BasePart") then v.Material=Enum.Material.SmoothPlastic end
+        end
+    end
+end
+
+local function resetGraphics()
+    lighting.GlobalShadows = defaultLighting.GlobalShadows
+    lighting.Brightness = defaultLighting.Brightness
+    lighting.ClockTime = defaultLighting.ClockTime
+    lighting.FogEnd = defaultLighting.FogEnd
+    for _,v in pairs(workspace:GetDescendants()) do
+        if v:IsA("BasePart") then v.Transparency=0 v.Material=Enum.Material.SmoothPlastic end
+        if v:IsA("ParticleEmitter") or v:IsA("Trail") then v.Enabled=true end
+    end
+end
+
+-- Create buttons
+local function createButton(text,y,callback)
+    local btn = Instance.new("TextButton")
+    btn.Size=UDim2.new(0,260,0,40)
+    btn.Position=UDim2.new(0,20,0,y)
+    btn.BackgroundColor3=Color3.fromRGB(50,50,50)
+    btn.TextColor3=Color3.fromRGB(255,255,255)
+    btn.Font=Enum.Font.SourceSans
+    btn.TextSize=22
+    btn.Text=text
+    btn.Parent=mainFrame
+    local corner=Instance.new("UICorner")
+    corner.CornerRadius=UDim.new(0,8)
+    corner.Parent=btn
+    btn.MouseButton1Click:Connect(callback)
+end
+
+createButton("Fix Lag",70,fixLag)
+createButton("Reduce Graphics 20%",120,function() setGraphics(20) end)
+createButton("Reduce Graphics 40%",170,function() setGraphics(40) end)
+createButton("Reduce Graphics 60%",220,function() setGraphics(60) end)
+createButton("Reduce Graphics 80%",270,function() setGraphics(80) end)
+createButton("Show FPS",320,function()
+    fpsCounter.Visible = not fpsCounter.Visible
+end)
+createButton("Reset Graphics",370,resetGraphics)
+createButton("Toggle Menu",420,function()
+    mainFrame.Visible = not mainFrame.Visible
+end)
+
+-- Drag & Drop
+local function makeDraggable(frame)
+    local UserInputService = game:GetService("UserInputService")
+    local dragging=false
+    local dragInput,mousePos,framePos
+    frame.InputBegan:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseButton1 then
+            dragging=true
+            mousePos=input.Position
+            framePos=frame.Position
+            input.Changed:Connect(function()
+                if input.UserInputState==Enum.UserInputState.End then dragging=false end
+            end)
+        end
+    end)
+    frame.InputChanged:Connect(function(input)
+        if input.UserInputType==Enum.UserInputType.MouseMovement then dragInput=input end
+    end)
+    UserInputService.InputChanged:Connect(function(input)
+        if input==dragInput and dragging then
+            local delta=input.Position-mousePos
+            frame.Position=UDim2.new(framePos.X.Scale,framePos.X.Offset+delta.X,framePos.Y.Scale,framePos.Y.Offset+delta.Y)
+        end
+    end)
+end
+
+makeDraggable(mainFrame)
