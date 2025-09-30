@@ -1,0 +1,147 @@
+-- GiHung Hub v6 - Fix Lag & Admin Abuse Remover với kéo-thả
+-- Tích hợp tính năng từ Fixlag v6 của buigiahungct25
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+local StarterGui = game:GetService("StarterGui")
+local Player = Players.LocalPlayer
+local UserInputService = game:GetService("UserInputService")
+
+-- ======= MENU =======
+local Gui = Instance.new("ScreenGui")
+Gui.Name = "GiHungHub"
+Gui.ResetOnSpawn = false
+Gui.Parent = Player:WaitForChild("PlayerGui")
+
+local Frame = Instance.new("Frame")
+Frame.Size = UDim2.new(0, 250, 0, 200)
+Frame.Position = UDim2.new(0.5, -125, 0.5, -100)
+Frame.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+Frame.Parent = Gui
+
+local UICorner = Instance.new("UICorner")
+UICorner.CornerRadius = UDim.new(0,10)
+UICorner.Parent = Frame
+
+-- ======= KÉO THẢ =======
+local dragging = false
+local dragInput, mousePos, framePos
+
+Frame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        mousePos = input.Position
+        framePos = Frame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+Frame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - mousePos
+        Frame.Position = UDim2.new(
+            framePos.X.Scale, framePos.X.Offset + delta.X,
+            framePos.Y.Scale, framePos.Y.Offset + delta.Y
+        )
+    end
+end)
+
+-- ======= BUTTONS =======
+local ToggleButton = Instance.new("TextButton")
+ToggleButton.Size = UDim2.new(1, -20, 0, 50)
+ToggleButton.Position = UDim2.new(0, 10, 0, 10)
+ToggleButton.Text = "Bật/Tắt Fix Lag"
+ToggleButton.Parent = Frame
+
+local ClearEffectsButton = Instance.new("TextButton")
+ClearEffectsButton.Size = UDim2.new(1, -20, 0, 50)
+ClearEffectsButton.Position = UDim2.new(0, 10, 0, 70)
+ClearEffectsButton.Text = "Xóa hiệu ứng Admin"
+ClearEffectsButton.Parent = Frame
+
+local ResetButton = Instance.new("TextButton")
+ResetButton.Size = UDim2.new(1, -20, 0, 50)
+ResetButton.Position = UDim2.new(0, 10, 0, 130)
+ResetButton.Text = "Reset Map"
+ResetButton.Parent = Frame
+
+-- ======= FIX LAG FUNCTION =======
+local function FixLag()
+    if Lighting:FindFirstChildOfClass("BloomEffect") then
+        Lighting.BloomEffect:Destroy()
+    end
+    Lighting.GlobalShadows = false
+    Lighting.FogEnd = 1000
+
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("ParticleEmitter") or v:IsA("Trail") then
+            v.Enabled = false
+        end
+        if v:IsA("Explosion") then
+            v.Visible = false
+        end
+    end
+end
+
+-- ======= XÓA HIỆU ỨNG ADMIN ABUSE =======
+local function ClearAdminEffects()
+    for _, v in pairs(Player.Character:GetDescendants()) do
+        if v:IsA("ForceField") or v:IsA("ParticleEmitter") or v:IsA("Smoke") or v:IsA("Fire") then
+            v:Destroy()
+        end
+    end
+end
+
+-- ======= RESET MAP =======
+local function ResetMap()
+    game:GetService("TeleportService"):Teleport(game.PlaceId, Player)
+end
+
+-- ======= FPS HIỂN THỊ =======
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.new(0, 200, 0, 30)
+fpsLabel.Position = UDim2.new(0, 10, 1, -40)
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.TextColor3 = Color3.fromRGB(255,255,255)
+fpsLabel.TextScaled = true
+fpsLabel.Parent = Frame
+
+local lastTime = tick()
+local frameCount = 0
+
+RunService.RenderStepped:Connect(function()
+    frameCount = frameCount + 1
+    if tick() - lastTime >= 1 then
+        fpsLabel.Text = "FPS: "..frameCount
+        frameCount = 0
+        lastTime = tick()
+    end
+end)
+
+-- ======= BUTTON FUNCTION =======
+local toggled = false
+ToggleButton.MouseButton1Click:Connect(function()
+    toggled = not toggled
+    if toggled then
+        FixLag()
+    else
+        print("Đã tắt fix lag (phải reload map để hoàn nguyên).")
+    end
+end)
+
+ClearEffectsButton.MouseButton1Click:Connect(ClearAdminEffects)
+ResetButton.MouseButton1Click:Connect(ResetMap)
+
+print("GiHung Hub v6 với kéo-thả đã sẵn sàng!")
