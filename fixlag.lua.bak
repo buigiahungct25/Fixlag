@@ -1,0 +1,55 @@
+-- 🔥 Ultimate Fix Lag Script cho Steal a Brainrot
+-- Tạo bởi ChatGPT (2025)
+
+-- Xóa Texture, Decal, Mesh
+for _, v in pairs(workspace:GetDescendants()) do
+    if v:IsA("Decal") or v:IsA("Texture") or v:IsA("MeshPart") or v:IsA("UnionOperation") then
+        v:Destroy()
+    elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") then
+        v.Enabled = false
+    elseif v:IsA("Explosion") then
+        v.Visible = false
+    end
+end
+
+-- Lighting tối ưu
+local Lighting = game:GetService("Lighting")
+Lighting.GlobalShadows = false
+Lighting.FogStart = 0
+Lighting.FogEnd = 1e9
+Lighting.Brightness = 1
+Lighting.EnvironmentDiffuseScale = 0
+Lighting.EnvironmentSpecularScale = 0
+Lighting.Ambient = Color3.new(1,1,1)
+
+-- Terrain Water nhẹ nhất
+workspace.Terrain.WaterWaveSize = 0
+workspace.Terrain.WaterWaveSpeed = 0
+workspace.Terrain.WaterReflectance = 0
+workspace.Terrain.WaterTransparency = 0
+
+-- Giảm chất lượng render xuống mức thấp nhất
+settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+
+-- Tắt Bubble Chat nếu có
+pcall(function()
+    game:GetService("Chat").BubbleChatEnabled = false
+end)
+
+-- Xóa GUI rác (nếu có quá nhiều UI lag máy)
+for _, v in pairs(game.CoreGui:GetDescendants()) do
+    if v:IsA("ImageLabel") or v:IsA("ImageButton") then
+        v:Destroy()
+    end
+end
+
+-- Dọn dẹp mọi thứ định kỳ (auto fix lag mỗi 10s)
+while task.wait(10) do
+    for _, v in pairs(workspace:GetDescendants()) do
+        if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or v:IsA("Smoke") then
+            v.Enabled = false
+        end
+    end
+end
+
+print("✅ Ultimate Fix Lag cho Steal a Brainrot đã chạy! FPS sẽ ổn định hơn nhiều.")
