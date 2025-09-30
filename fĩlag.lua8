@@ -1,0 +1,83 @@
+-- 🔥 VIP Fix Lag + FPS Counter cho Steal a Brainrot
+-- Tạo bởi ChatGPT (2025)
+
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- GUI chính
+local ScreenGui = Instance.new("ScreenGui", game.CoreGui)
+local MainFrame = Instance.new("Frame", ScreenGui)
+MainFrame.Size = UDim2.new(0,250,0,150)
+MainFrame.Position = UDim2.new(0,20,0,100)
+MainFrame.BackgroundColor3 = Color3.fromRGB(25,25,25)
+MainFrame.Active = true
+MainFrame.Draggable = true
+MainFrame.Visible = true
+
+local Title = Instance.new("TextLabel", MainFrame)
+Title.Size = UDim2.new(1,0,0,30)
+Title.Text = "🔥 Fix Lag VIP"
+Title.TextColor3 = Color3.new(1,1,1)
+Title.BackgroundColor3 = Color3.fromRGB(50,50,50)
+Title.Font = Enum.Font.SourceSansBold
+Title.TextScaled = true
+
+-- FPS Label
+local FPSLabel = Instance.new("TextLabel", MainFrame)
+FPSLabel.Size = UDim2.new(1,0,0,30)
+FPSLabel.Position = UDim2.new(0,0,0,40)
+FPSLabel.TextColor3 = Color3.fromRGB(0,255,0)
+FPSLabel.Text = "FPS: 0"
+FPSLabel.Font = Enum.Font.SourceSansBold
+FPSLabel.TextScaled = true
+FPSLabel.BackgroundTransparency = 1
+
+-- Nút fix lag
+local FixButton = Instance.new("TextButton", MainFrame)
+FixButton.Size = UDim2.new(1,0,0,40)
+FixButton.Position = UDim2.new(0,0,0,80)
+FixButton.Text = "⚡ Kích hoạt Fix Lag"
+FixButton.TextScaled = true
+FixButton.BackgroundColor3 = Color3.fromRGB(40,40,40)
+FixButton.TextColor3 = Color3.new(1,1,1)
+
+local fixed = false
+FixButton.MouseButton1Click:Connect(function()
+    if not fixed then
+        fixed = true
+        FixButton.Text = "✅ Đã Fix Lag"
+        
+        -- Xóa object nặng
+        for _, v in pairs(workspace:GetDescendants()) do
+            if v:IsA("Decal") or v:IsA("Texture") or v:IsA("MeshPart") or v:IsA("UnionOperation") then
+                v:Destroy()
+            elseif v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Fire") or v:IsA("Smoke") or v:IsA("Sparkles") then
+                v:Destroy()
+            end
+        end
+
+        -- Lighting tối ưu
+        game.Lighting.GlobalShadows = false
+        game.Lighting.FogEnd = 999999
+        game.Lighting.Brightness = 1
+
+        -- Giảm chất lượng render
+        settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+    end
+end)
+
+-- Tính FPS
+local lastTime = tick()
+RunService.RenderStepped:Connect(function()
+    local now = tick()
+    local fps = math.floor(1 / (now - lastTime))
+    FPSLabel.Text = "FPS: "..tostring(fps)
+    lastTime = now
+end)
+
+-- Ẩn/hiện menu bằng phím F
+UserInputService.InputBegan:Connect(function(input, gp)
+    if not gp and input.KeyCode == Enum.KeyCode.F then
+        MainFrame.Visible = not MainFrame.Visible
+    end
+end)
