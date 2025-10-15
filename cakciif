@@ -1,0 +1,351 @@
+-- Roblox Ultimate FPS Optimizer (Auto + Extreme + Clean)
+-- Tác giả: Bùi Gia Hưng (kết hợp yêu cầu)
+-- LƯU Ý: An toàn, client-only. Không exploit, không thay đổi server.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local Lighting = game:GetService("Lighting")
+
+local player = Players.LocalPlayer
+local playerGui = player:WaitForChild("PlayerGui")
+
+-- ====== CÀI ĐẶT ======
+local mode = "OFF" -- OFF | AUTO | EXTREME
+local fps = 0
+local frames = 0
+local lastCheck = tick()
+local autoApply = false
+local extremeApplied = false
+local cleaned = false
+
+-- Bảng lưu trạng thái cũ để restore (nếu có)
+local saved = {
+    partsCastShadow = {},        -- [instance] = oldCastShadow
+    texturesTransparency = {},   -- [instance] = oldTransparency
+    particlesEnabled = {},       -- [instance] = oldEnabled
+    trailsEnabled = {},          -- [instance] = oldEnabled
+    lightsEnabled = {},          -- [instance] = oldEnabled
+    decalsTransparency = {},     -- [instance] = oldTransparency
+    postEffectsEnabled = {},     -- [instance] = oldEnabled (for Effects in Lighting)
+    qualityLevel = nil,          -- saved quality (if changeable)
+}
+
+-- ====== UI ======
+local gui = Instance.new("ScreenGui")
+gui.Name = "UltimateFPSOptimizer"
+gui.ResetOnSpawn = false
+gui.Parent = playerGui
+
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 260, 0, 140)
+frame.Position = UDim2.new(0, 12, 0, 12)
+frame.BackgroundColor3 = Color3.fromRGB(20, 20, 20)
+frame.BackgroundTransparency = 0.15
+frame.BorderSizePixel = 0
+frame.Parent = gui
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -12, 0, 22)
+title.Position = UDim2.new(0, 6, 0, 6)
+title.BackgroundTransparency = 1
+title.Text = "Ultimate FPS Optimizer"
+title.TextScaled = false
+title.Font = Enum.Font.GothamBold
+title.TextSize = 16
+title.TextColor3 = Color3.fromRGB(230,230,230)
+title.Parent = frame
+
+local fpsLabel = Instance.new("TextLabel")
+fpsLabel.Size = UDim2.new(1, -12, 0, 28)
+fpsLabel.Position = UDim2.new(0, 6, 0, 34)
+fpsLabel.BackgroundTransparency = 1
+fpsLabel.Text = "FPS: ..."
+fpsLabel.TextScaled = false
+fpsLabel.Font = Enum.Font.Gotham
+fpsLabel.TextSize = 18
+fpsLabel.TextColor3 = Color3.fromRGB(255,255,255)
+fpsLabel.Parent = frame
+
+local modeButton = Instance.new("TextButton")
+modeButton.Size = UDim2.new(1, -12, 0, 32)
+modeButton.Position = UDim2.new(0, 6, 0, 66)
+modeButton.BackgroundColor3 = Color3.fromRGB(70,130,180)
+modeButton.TextColor3 = Color3.fromRGB(255,255,255)
+modeButton.Font = Enum.Font.GothamBold
+modeButton.TextScaled = true
+modeButton.Text = "Chế độ: OFF"
+modeButton.Parent = frame
+
+local cleanButton = Instance.new("TextButton")
+cleanButton.Size = UDim2.new(0.48, -8, 0, 28)
+cleanButton.Position = UDim2.new(0, 6, 0, 106)
+cleanButton.BackgroundColor3 = Color3.fromRGB(120,120,120)
+cleanButton.Text = "Clean Now"
+cleanButton.Font = Enum.Font.Gotham
+cleanButton.TextScaled = true
+cleanButton.Parent = frame
+
+local restoreButton = Instance.new("TextButton")
+restoreButton.Size = UDim2.new(0.48, -8, 0, 28)
+restoreButton.Position = UDim2.new(0.52, 2, 0, 106)
+restoreButton.BackgroundColor3 = Color3.fromRGB(100,170,100)
+restoreButton.Text = "Restore"
+restoreButton.Font = Enum.Font.Gotham
+restoreButton.TextScaled = true
+restoreButton.Parent = frame
+
+local infoLabel = Instance.new("TextLabel")
+infoLabel.Size = UDim2.new(1, -12, 0, 14)
+infoLabel.Position = UDim2.new(0,6,1,-20)
+infoLabel.BackgroundTransparency = 1
+infoLabel.Text = "Trạng thái: OFF"
+infoLabel.Font = Enum.Font.Gotham
+infoLabel.TextSize = 11
+infoLabel.TextColor3 = Color3.fromRGB(200,200,200)
+infoLabel.Parent = frame
+
+-- ====== HỖ TRỢ: pcall cho Quality change (một số môi trường ko hỗ trợ) ======
+local function trySetQuality(level)
+    local ok, err = pcall(function()
+        if settings and settings().Rendering then
+            -- pcall tránh lỗi khi chạy game thật (có thể không được hỗ trợ runtime)
+            settings().Rendering.QualityLevel = level
+        end
+    end)
+    return ok, err
+end
+
+local function tryGetQuality()
+    local ok, val = pcall(function()
+        if settings and settings().Rendering then
+            return settings().Rendering.QualityLevel
+        end
+        return nil
+    end)
+    return ok and val or nil
+end
+
+-- ====== HELPERS: Save & Apply ======
+local function saveInstanceState(inst)
+    if inst:IsA("BasePart") then
+        if saved.partsCastShadow[inst] == nil then
+            saved.partsCastShadow[inst] = inst.CastShadow
+        end
+    end
+    if inst:IsA("Texture") then
+        if saved.texturesTransparency[inst] == nil then
+            saved.texturesTransparency[inst] = inst.Transparency
+        end
+    end
+    if inst:IsA("Decal") then
+        if saved.decalsTransparency[inst] == nil then
+            saved.decalsTransparency[inst] = inst.Transparency
+        end
+    end
+    if inst:IsA("ParticleEmitter") then
+        if saved.particlesEnabled[inst] == nil then
+            saved.particlesEnabled[inst] = inst.Enabled
+        end
+    end
+    if inst:IsA("Trail") then
+        if saved.trailsEnabled[inst] == nil then
+            saved.trailsEnabled[inst] = inst.Enabled
+        end
+    end
+    if inst:IsA("Light") or inst:IsA("PointLight") or inst:IsA("SpotLight") or inst:IsA("SurfaceLight") then
+        if saved.lightsEnabled[inst] == nil then
+            saved.lightsEnabled[inst] = inst.Enabled
+        end
+    end
+end
+
+local function applyOptimization(extreme)
+    -- Lặp qua workspace, lưu trạng thái rồi tắt hiệu ứng nặng
+    for _, v in pairs(workspace:GetDescendants()) do
+        -- skip descendants that may be removed quickly
+        local ok, err = pcall(function()
+            saveInstanceState(v)
+            if v:IsA("BasePart") then
+                v.CastShadow = false
+            end
+            if v:IsA("Texture") then
+                if extreme then
+                    v.Transparency = 1
+                end
+            end
+            if v:IsA("Decal") then
+                if extreme then
+                    v.Transparency = 1
+                end
+            end
+            if v:IsA("ParticleEmitter") then
+                v.Enabled = false
+            end
+            if v:IsA("Trail") then
+                v.Enabled = false
+            end
+            if v:IsA("Light") or v:IsA("PointLight") or v:IsA("SpotLight") or v:IsA("SurfaceLight") then
+                v.Enabled = false
+            end
+        end)
+        if not ok then
+            -- ignore problematic instance
+        end
+    end
+
+    -- Post-processing effects in Lighting (BloomEffect, BlurEffect, ColorCorrection, DepthOfField, SunRays, etc.)
+    for _, eff in pairs(Lighting:GetChildren()) do
+        local className = eff.ClassName
+        if className:find("Effect") or className:find("Blur") or className:find("Bloom") or className:find("ColorCorrection") or className:find("SunRays") or className:find("DepthOfField") then
+            if saved.postEffectsEnabled[eff] == nil then
+                local ok, old = pcall(function() return eff.Enabled end)
+                if ok then saved.postEffectsEnabled[eff] = old end
+            end
+            pcall(function() eff.Enabled = false end)
+        end
+    end
+
+    -- Thử chuyển quality cực thấp (nếu môi trường cho phép)
+    local ok, oldQuality = pcall(tryGetQuality)
+    if ok then
+        saved.qualityLevel = oldQuality
+        pcall(function() trySetQuality(Enum.QualityLevel.Level01) end)
+    end
+end
+
+local function restoreState()
+    -- Restore parts CastShadow
+    for inst, old in pairs(saved.partsCastShadow) do
+        if inst and inst.Parent then
+            pcall(function() inst.CastShadow = old end)
+        end
+    end
+    saved.partsCastShadow = {}
+
+    for inst, old in pairs(saved.texturesTransparency) do
+        if inst and inst.Parent then
+            pcall(function() inst.Transparency = old end)
+        end
+    end
+    saved.texturesTransparency = {}
+
+    for inst, old in pairs(saved.decalsTransparency) do
+        if inst and inst.Parent then
+            pcall(function() inst.Transparency = old end)
+        end
+    end
+    saved.decalsTransparency = {}
+
+    for inst, old in pairs(saved.particlesEnabled) do
+        if inst and inst.Parent then
+            pcall(function() inst.Enabled = old end)
+        end
+    end
+    saved.particlesEnabled = {}
+
+    for inst, old in pairs(saved.trailsEnabled) do
+        if inst and inst.Parent then
+            pcall(function() inst.Enabled = old end)
+        end
+    end
+    saved.trailsEnabled = {}
+
+    for inst, old in pairs(saved.lightsEnabled) do
+        if inst and inst.Parent then
+            pcall(function() inst.Enabled = old end)
+        end
+    end
+    saved.lightsEnabled = {}
+
+    for eff, old in pairs(saved.postEffectsEnabled) do
+        if eff and eff.Parent then
+            pcall(function() eff.Enabled = old end)
+        end
+    end
+    saved.postEffectsEnabled = {}
+
+    if saved.qualityLevel ~= nil then
+        pcall(function() trySetQuality(saved.qualityLevel) end)
+        saved.qualityLevel = nil
+    end
+end
+
+-- ====== Clean Now (tắt ngay tất cả hiệu ứng nặng phía client) ======
+local function cleanNow()
+    applyOptimization(true)
+    cleaned = true
+    infoLabel.Text = "Trạng thái: Cleaned (client)"
+end
+
+local function applyAutoOptimize()
+    -- Ở chế độ Auto: khi fps thấp -> tối ưu nhẹ. Khi ổn -> restore
+    -- Tối ưu nhẹ: tắt particle/trail, tắt shadows, giảm một số texture, giảm post-effects
+    applyOptimization(false)
+    autoApply = true
+    infoLabel.Text = "Trạng thái: AUTO - Đang tối ưu tạm thời"
+end
+
+local function applyExtreme()
+    applyOptimization(true)
+    extremeApplied = true
+    infoLabel.Text = "Trạng thái: EXTREME - Giảm tối đa"
+end
+
+local function disableAllOptimizations()
+    -- restore
+    restoreState()
+    autoApply = false
+    extremeApplied = false
+    cleaned = false
+    infoLabel.Text = "Trạng thái: OFF"
+end
+
+-- ====== Button Events ======
+modeButton.MouseButton1Click:Connect(function()
+    if mode == "OFF" then
+        mode = "AUTO"
+        modeButton.Text = "Chế độ: AUTO"
+        applyAutoOptimize()
+    elseif mode == "AUTO" then
+        mode = "EXTREME"
+        modeButton.Text = "Chế độ: EXTREME"
+        applyExtreme()
+    elseif mode == "EXTREME" then
+        mode = "OFF"
+        modeButton.Text = "Chế độ: OFF"
+        disableAllOptimizations()
+    end
+end)
+
+cleanButton.MouseButton1Click:Connect(function()
+    cleanNow()
+end)
+
+restoreButton.MouseButton1Click:Connect(function()
+    disableAllOptimizations()
+end)
+
+-- ====== FPS Tracker & Auto Logic ======
+RunService.RenderStepped:Connect(function()
+    frames = frames + 1
+    if tick() - lastCheck >= 1 then
+        fps = frames
+        fpsLabel.Text = "FPS: " .. tostring(fps)
+        frames = 0
+        lastCheck = tick()
+
+        if mode == "AUTO" then
+            if fps < 45 and not autoApply then
+                -- FPS xuống, apply tối ưu nhẹ
+                applyAutoOptimize()
+            elseif fps >= 55 and autoApply and not extremeApplied and not cleaned then
+                -- FPS ổn -> restore
+                restoreState()
+                autoApply = false
+                infoLabel.Text = "Trạng thái: AUTO - FPS ổn"
+            end
+        end
+    end
+end)
+
+print("✅ Ultimate FPS Optimizer loaded. Place this LocalScript in StarterPlayerScripts.")
