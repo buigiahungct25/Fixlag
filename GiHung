@@ -1,0 +1,73 @@
+-- ⚡ Roblox Fix Lag Menu v1.0 (Safe)
+-- Tác giả: ChatGPT
+
+-- Tạo ScreenGui
+local gui = Instance.new("ScreenGui")
+gui.Name = "FixLagMenu"
+gui.ResetOnSpawn = false
+gui.Parent = game.CoreGui
+
+-- Tạo khung menu
+local frame = Instance.new("Frame")
+frame.Size = UDim2.new(0, 200, 0, 200)
+frame.Position = UDim2.new(0.05, 0, 0.2, 0)
+frame.BackgroundColor3 = Color3.fromRGB(25, 25, 25)
+frame.BorderSizePixel = 0
+frame.Active = true
+frame.Draggable = true
+frame.Parent = gui
+
+-- Tiêu đề
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, 0, 0, 30)
+title.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+title.Text = "⚙️ Fix Lag Menu"
+title.TextColor3 = Color3.new(1,1,1)
+title.Font = Enum.Font.SourceSansBold
+title.TextSize = 18
+title.Parent = frame
+
+-- Nút tạo
+local function newButton(name, y, callback)
+    local btn = Instance.new("TextButton")
+    btn.Size = UDim2.new(1, -20, 0, 30)
+    btn.Position = UDim2.new(0, 10, 0, y)
+    btn.BackgroundColor3 = Color3.fromRGB(60, 60, 60)
+    btn.Text = name
+    btn.TextColor3 = Color3.new(1,1,1)
+    btn.Font = Enum.Font.SourceSans
+    btn.TextSize = 16
+    btn.Parent = frame
+    btn.MouseButton1Click:Connect(callback)
+end
+
+-- ⚙️ Chức năng các nút
+newButton("🧹 Dọn hiệu ứng", 40, function()
+    for _,v in pairs(workspace:GetDescendants()) do
+        if v:IsA("ParticleEmitter") or v:IsA("Trail") or v:IsA("Smoke") or v:IsA("Fire") or v:IsA("Explosion") then
+            pcall(function() v:Destroy() end)
+        end
+    end
+end)
+
+newButton("💡 Giảm đồ họa", 80, function()
+    local L = game:GetService("Lighting")
+    L.GlobalShadows = false
+    L.FogEnd = 999999
+    L.Brightness = 1
+    L.EnvironmentDiffuseScale = 0
+    L.EnvironmentSpecularScale = 0
+    settings().Rendering.QualityLevel = Enum.QualityLevel.Level01
+end)
+
+newButton("🚀 Unlock 120 FPS", 120, function()
+    if setfpscap then
+        setfpscap(120)
+    end
+end)
+
+newButton("♻️ Dọn RAM", 160, function()
+    collectgarbage("collect")
+end)
+
+print("[✅] Fix Lag Menu Loaded! Kéo khung để di chuyển.")
