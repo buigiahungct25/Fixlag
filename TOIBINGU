@@ -1,0 +1,12 @@
+-- ClearBrainrotContinuous.lua -- Mô tả: Xóa tất cả Brainrot trong Steal a Brainrot liên tục nhưng giữ nhân vật người chơi.
+
+local Players = game:GetService("Players") local Workspace = game:GetService("Workspace") local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer local Character = LocalPlayer.Character or LocalPlayer.CharacterAdded:Wait()
+
+-- Lấy danh sách các part thuộc character để bảo vệ local protectedParts = {} for _, part in ipairs(Character:GetDescendants()) do if part:IsA("BasePart") then protectedParts[part] = true end end
+
+-- Hàm xóa Brainrot local function clearBrainrot() for _, obj in ipairs(Workspace:GetDescendants()) do if obj:IsA("Model") or obj:IsA("Part") then if string.find(obj.Name:lower(), "brainrot") then pcall(function() obj:Destroy() end) end end end end
+
+-- Kết nối với RenderStep để xóa liên tục RunService.RenderStepped:Connect(function() clearBrainrot() end)
+
