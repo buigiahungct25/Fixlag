@@ -1,0 +1,54 @@
+--// FixLag Steal a Brainrot Edition
+-- Tự động chạy khi load vào game
+
+if not game.PlaceId then return end
+local place = game.PlaceId
+if place ~= 17749256587 and place ~= 17440832767 then
+    warn("⚠️ Không phải game Steal a Brainrot, script sẽ không chạy.")
+    return
+end
+
+print("🧠 Steal a Brainrot FixLag v2 đang hoạt động...")
+
+-- Hàm tối ưu đối tượng
+local function optimize(obj)
+    if obj:IsA("ParticleEmitter") or obj:IsA("Trail") or obj:IsA("Fire") or obj:IsA("Smoke") or obj:IsA("Explosion") then
+        obj.Enabled = false
+    elseif obj:IsA("PointLight") or obj:IsA("SpotLight") or obj:IsA("SurfaceLight") then
+        obj.Enabled = false
+    elseif obj:IsA("Decal") or obj:IsA("Texture") then
+        obj.Transparency = 1
+    elseif obj:IsA("BasePart") then
+        obj.Material = Enum.Material.Plastic
+        obj.Reflectance = 0
+    elseif obj:IsA("Sound") then
+        obj.Volume = 0
+    end
+end
+
+-- Tối ưu mọi thứ đang có
+for _,v in pairs(workspace:GetDescendants()) do
+    optimize(v)
+end
+
+-- Tự tối ưu khi game spawn thêm effect
+workspace.DescendantAdded:Connect(optimize)
+
+-- Tối ưu Lighting
+local Lighting = game:GetService("Lighting")
+Lighting.GlobalShadows = false
+Lighting.FogEnd = 9e9
+Lighting.Brightness = 1
+Lighting.ShadowSoftness = 0
+for _,v in pairs(Lighting:GetChildren()) do
+    if v:IsA("PostEffect") then
+        v.Enabled = false
+    end
+end
+
+-- Giới hạn FPS
+if setfpscap then
+    setfpscap(60)
+end
+
+print("✅ FixLag Steal a Brainrot đã kích hoạt! Game sẽ mượt hơn đáng kể.")
